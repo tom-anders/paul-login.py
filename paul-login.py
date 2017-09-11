@@ -1,12 +1,14 @@
 import requests
+import os
 import re
 import sys
+import yaml
+import getpass
+from bs4 import BeautifulSoup
 
 base_url = "https://paul.uni-paderborn.de"
+usr_file = "usr.yaml"
 # fill in your login data here
-username = 'TODO'
-password = 'TODO'
-
 
 def extract_meta_redirect(html):
     """
@@ -45,6 +47,7 @@ def follow_redirects(start_url):
 
 
 def login_by_credentials():
+    print('Starting log in...')
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
         "User-Agent": "User-Agent:Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36",
@@ -53,6 +56,18 @@ def login_by_credentials():
         "Origin": "https://paul.uni-paderborn.de",
         "Upgrade-Insecure-Requests": "1"
     }
+    if os.path.exists(usr_file):
+        with open(usr_file, encoding='utf-8') as f:
+            y = yaml.load(f.read())
+            username = y["username"]
+            password = y["password"]
+    else:
+        username = input("Username: ")
+        password = getpass.getpass()
+        print('\n Note: Create a file "{file}" and fill it with your information for faster login:\n\n'
+              'username: your_username\n'
+              'password: your_password\n'.format(file=usr_file))
+
     data = {
         "usrname": username,
         "pass": password,
@@ -78,17 +93,69 @@ def login_by_credentials():
     r = requests.get(final_url)
     if 'Herzlich willkommen' in r.text:
         name = re.findall(r'(?<=Herzlich willkommen,)[^!]*', r.text)[0].strip()
-        print('\nYou are logged in!\nWelcome {}!'.format(name))
+        print('Login successfull!')
     else:
         print('Something broke :(')
+    
+    return r;
+
+def find_courses(r):
+    print("Fetching courses...")
+    #Find "Studium" link
+    soup =  BeautifulSoup(r.text, 'html.parser')
+    studium = soup.find('a', attrs={'class', 'depth_1 link000454 navLink branchLink folder'})
+    #Find "Semesterverwaltung"
+    r = requests.get(base_url + studium['href'])
+    soup =  BeautifulSoup(r.text, 'html.parser')
+    semesterverwaltung = soup.find('a', attrs={'class', 'depth_2 link000455 navLink branchLink '})
+    #Find "Veranstaltungsuebersicht"
+    r = requests.get(base_url + semesterverwaltung['href'])
+    soup =  BeautifulSoup(r.text, 'html.parser')
+    uebersicht = soup.find('a', attrs={'class', 'depth_3 link000459 navLink '})
+   
+    #return a list of all your courses in the current term 
+    r = requests.get(base_url + uebersicht['href'])
+    r.encoding = 'utf-8' 
+    soup =  BeautifulSoup(r.text, 'html.parser')
+    courses =  soup.findAll('a', {'name':'eventLink'})
+    return courses
+
+def download_material(course):
+    #Remove " - Übung" and "(Übung)" from course name
+    name = course.text
+    if ' - ' in name: 
+        name = course.text.split(' - ')[0]
+    elif '(Übung)' in name:
+        name = course.text.split(' (Übung)')[0]
+    if not os.path.exists(name):
+        os.makedirs(name)
+
+    print("Downloading new files for {}...".format(name))
+
+    #Find files
+    r = requests.get(base_url + course['href'])
+    r.encoding = 'utf-8' 
+    soup = BeautifulSoup(r.text, 'html.parser')
+    material = soup.findAll('a', {'href':re.compile('filetransfer')})
+
+    #Download files
+    count = 0
+    for m in material:
+        filename = name + "/" + m.text
+        if not os.path.exists(filename): #Only download new files
+            print("    " + m.text) 
+            count += 1
+            r = requests.get(base_url + m['href'])
+            with open(filename, 'wb') as file:
+                file.write(r.content)
+    if count == 0:
+        print("    No new files!")
 
 
 if __name__ == '__main__':
-    # https://paul.uni-paderborn.de/scripts/mgrqispi.dll?APPNAME=CampusNet&PRGNAME=EXTERNALPAGES&ARGUMENTS=-N000000000000001,-N000435,-Awelcome
-    # This was just a test and this is not needed to login at all!
-    # The actual login will be done by a POST in login_by_credentials()
-    paul_login_page = follow_redirects(base_url)
-    print("This is the URL where you see the username "
-          "and password login forms: {}".format(paul_login_page))
+    r = login_by_credentials()
+    courses = find_courses(r)
+    
+    for c in courses:
+        download_material(c)
 
-    login_by_credentials()
