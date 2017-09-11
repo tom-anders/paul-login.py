@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 base_url = "https://paul.uni-paderborn.de"
 usr_file = "usr.yaml"
-# fill in your login data here
+
 
 def extract_meta_redirect(html):
     """
@@ -92,36 +92,37 @@ def login_by_credentials():
     final_url = follow_redirects(base_url + url)
     r = requests.get(final_url)
     if 'Herzlich willkommen' in r.text:
-        name = re.findall(r'(?<=Herzlich willkommen,)[^!]*', r.text)[0].strip()
-        print('Login successfull!')
+        print('Login successful!')
     else:
         print('Something broke :(')
     
-    return r;
+    return r
+
 
 def find_courses(r):
     print("Fetching courses...")
-    #Find "Studium" link
-    soup =  BeautifulSoup(r.text, 'html.parser')
+    # Find "Studium" link
+    soup = BeautifulSoup(r.text, 'html.parser')
     studium = soup.find('a', attrs={'class', 'depth_1 link000454 navLink branchLink folder'})
-    #Find "Semesterverwaltung"
+    # Find "Semesterverwaltung"
     r = requests.get(base_url + studium['href'])
-    soup =  BeautifulSoup(r.text, 'html.parser')
+    soup = BeautifulSoup(r.text, 'html.parser')
     semesterverwaltung = soup.find('a', attrs={'class', 'depth_2 link000455 navLink branchLink '})
-    #Find "Veranstaltungsuebersicht"
+    # Find "Veranstaltungsuebersicht"
     r = requests.get(base_url + semesterverwaltung['href'])
-    soup =  BeautifulSoup(r.text, 'html.parser')
+    soup = BeautifulSoup(r.text, 'html.parser')
     uebersicht = soup.find('a', attrs={'class', 'depth_3 link000459 navLink '})
    
-    #return a list of all your courses in the current term 
+    # return a list of all your courses in the current term
     r = requests.get(base_url + uebersicht['href'])
     r.encoding = 'utf-8' 
-    soup =  BeautifulSoup(r.text, 'html.parser')
-    courses =  soup.findAll('a', {'name':'eventLink'})
+    soup = BeautifulSoup(r.text, 'html.parser')
+    courses = soup.findAll('a', {'name': 'eventLink'})
     return courses
 
+
 def download_material(course):
-    #Remove " - Übung" and "(Übung)" from course name
+    # Remove " - Übung" and "(Übung)" from course name
     name = course.text
     if ' - ' in name: 
         name = course.text.split(' - ')[0]
@@ -132,17 +133,17 @@ def download_material(course):
 
     print("Downloading new files for {}...".format(name))
 
-    #Find files
+    # Find files
     r = requests.get(base_url + course['href'])
     r.encoding = 'utf-8' 
     soup = BeautifulSoup(r.text, 'html.parser')
-    material = soup.findAll('a', {'href':re.compile('filetransfer')})
+    material = soup.findAll('a', {'href': re.compile('filetransfer')})
 
-    #Download files
+    # Download files
     count = 0
     for m in material:
         filename = name + "/" + m.text
-        if not os.path.exists(filename): #Only download new files
+        if not os.path.exists(filename):  # Only download new files
             print("    " + m.text) 
             count += 1
             r = requests.get(base_url + m['href'])
