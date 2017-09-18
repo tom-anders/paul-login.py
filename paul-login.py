@@ -1,9 +1,11 @@
+# -*- coding: UTF-8 -*-
 import requests
 import os
 import re
 import sys
 import yaml
 import getpass
+from io import open  # For python 2.x
 from bs4 import BeautifulSoup
 
 base_url = "https://paul.uni-paderborn.de"
