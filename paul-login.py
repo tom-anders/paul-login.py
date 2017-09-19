@@ -6,6 +6,7 @@ import re
 import sys
 import yaml
 import getpass
+import argparse 
 from io import open  # For python 2.x
 from bs4 import BeautifulSoup
 
@@ -49,7 +50,7 @@ def follow_redirects(start_url):
     return base_url + suffix
 
 
-def login_by_credentials():
+def login_by_credentials(username):
     print('Starting log in...')
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -65,7 +66,8 @@ def login_by_credentials():
             username = y["username"]
             password = y["password"]
     else:
-        username = input("Username: ")
+        if username == '':
+            username = input("Username: ")
         password = getpass.getpass()
         print('\n Note: Create a file "{file}" and fill it with your information for faster login:\n\n'
               'username: your_username\n'
@@ -157,7 +159,12 @@ def download_material(course):
 
 
 if __name__ == '__main__':
-    r = login_by_credentials()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-u', '--username', default='')
+
+    args = parser.parse_args()
+    
+    r = login_by_credentials(args.username)
     courses = find_courses(r)
     
     for c in courses:
