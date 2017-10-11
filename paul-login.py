@@ -4,14 +4,12 @@ import requests
 import os
 import re
 import sys
-import yaml
 import getpass
 import argparse 
 from io import open  # For python 2.x
 from bs4 import BeautifulSoup
 
 base_url = "https://paul.uni-paderborn.de"
-usr_file = "usr.yaml"
 
 
 def extract_meta_redirect(html):
@@ -60,18 +58,9 @@ def login_by_credentials(username):
         "Origin": "https://paul.uni-paderborn.de",
         "Upgrade-Insecure-Requests": "1"
     }
-    if os.path.exists(usr_file):
-        with open(usr_file, encoding='utf-8') as f:
-            y = yaml.load(f.read())
-            username = y["username"]
-            password = y["password"]
-    else:
-        if username == '':
-            username = input("Username: ")
-        password = getpass.getpass()
-        print('\n Note: Create a file "{file}" and fill it with your information for faster login:\n\n'
-              'username: your_username\n'
-              'password: your_password\n'.format(file=usr_file))
+    if username == '':
+        username = input("Username: ")
+    password = getpass.getpass()
 
     data = {
         "usrname": username,
