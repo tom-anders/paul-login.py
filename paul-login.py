@@ -8,6 +8,7 @@ import getpass
 import argparse 
 from io import open  # For python 2.x
 from bs4 import BeautifulSoup
+import keyring
 
 base_url = "https://paul.uni-paderborn.de"
 
@@ -60,7 +61,10 @@ def login_by_credentials(username):
     }
     if username == '':
         username = input("Username: ")
-    password = getpass.getpass()
+    password = keyring.get_password("paul", username)
+    if password == None:
+        password = getpass.getpass()
+        keyring.set_password("paul", username, password)
 
     data = {
         "usrname": username,
