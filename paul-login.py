@@ -48,6 +48,16 @@ def follow_redirects(start_url):
         r = requests.get(base_url + suffix)
     return base_url + suffix
 
+def get_username_and_pass(username):
+    if username == '':
+        username = input("Username: ")
+    password = keyring.get_password("paul", username)
+    if password == None:
+        password = getpass.getpass()
+        keyring.set_password("paul", username, password)
+
+    return(username, password)
+
 
 def login_by_credentials(username):
     print('Starting log in...')
@@ -59,12 +69,8 @@ def login_by_credentials(username):
         "Origin": "https://paul.uni-paderborn.de",
         "Upgrade-Insecure-Requests": "1"
     }
-    if username == '':
-        username = input("Username: ")
-    password = keyring.get_password("paul", username)
-    if password == None:
-        password = getpass.getpass()
-        keyring.set_password("paul", username, password)
+
+    (username, password) = get_username_and_pass(username)
 
     data = {
         "usrname": username,
@@ -150,16 +156,46 @@ def download_material(course):
     if count == 0:
         print("    No new files!")
 
+def download_quantum_mechanics():
+    print("Checking Quantum Mechanics from WGS homepage...")
+
+    qm_name = 'Theoretische Physik (Quantenmechanik II)'
+    if not os.path.exists(qm_name):
+        os.makedirs(qm_name)
+
+    url = "http://homepages.uni-paderborn.de/wgs/Dlehre/"
+    r = requests.get(url + "lehre.html")
+    # Find "Studium" link
+    soup = BeautifulSoup(r.text, 'html.parser')
+
+    # QM is at the top so we can just use the first occurence of the class 'eckig'
+    qm = soup.find('ul', attrs={'class', 'eckig'})
+    
+    count = 0
+    for f in qm.findAll('a'):
+        if not os.path.exists(f.text):
+            print("    " + f.text)
+            r = requests.get(url + f['href'])
+            count += 1
+            # Remove the "/" here so we don't get in trouble
+            filename = qm_name + "/" + f.text.replace("/", ",")
+            with open(filename, 'wb') as file:
+                file.write(r.content)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--username', default='')
 
     args = parser.parse_args()
-    
+
+    # Download from paul
+
     r = login_by_credentials(args.username)
     courses = find_courses(r)
     
     for c in courses:
         download_material(c)
+
+    # Download quantum mechanics 
+    download_quantum_mechanics()
 
