@@ -173,14 +173,16 @@ def download_quantum_mechanics():
     
     count = 0
     for f in qm.findAll('a'):
-        if not os.path.exists(f.text):
+        filename = qm_name + "/" + f.text.replace("/", ",")
+        if not os.path.exists(filename):
             print("    " + f.text)
             r = requests.get(url + f['href'])
             count += 1
             # Remove the "/" here so we don't get in trouble
-            filename = qm_name + "/" + f.text.replace("/", ",")
             with open(filename, 'wb') as file:
                 file.write(r.content)
+    if count == 0:
+        print("    No new files!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
